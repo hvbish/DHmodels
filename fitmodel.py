@@ -10,7 +10,7 @@ from DHmodels import *
 
 def lnprior(pars):
 
-    #"""##### FlatSandwich priors ######
+    """##### FlatSandwich priors ######
     vflat, lag, vz, h0 = pars
     if vflat<0 or lag<0 or h0<0:
         return -np.inf
@@ -23,9 +23,9 @@ def lnprior(pars):
     # Flat priors
     #pr = (0.0001<h0<10) and (0<lag<200) and (200<vflat<280) and (-20<vz<20)
     #prior = 0 if pr else -np.inf
-    #"""
+    """
     
-    """##### GaussianSandwich priors ######
+    #"""##### GaussianSandwich priors ######
     vflat, lag, vz, h0, sigma = pars
     if vflat<0 or lag<0 or h0<0 or sigma<0:
         return -np.inf
@@ -36,7 +36,7 @@ def lnprior(pars):
     h_prior   = norm.pdf(h0,loc=5,scale=2)
     sig_prior = norm.pdf(sigma,loc=1,scale=0.5)
     prior = np.log(h_prior*lag_prior*vz_prior*vf_prior*sig_prior)
-    """
+    #"""
 
     return prior
 
@@ -44,16 +44,16 @@ def lnprior(pars):
 def lnlike(pars,data):
     
     ##### FlatSandwich parameters ######
-    vf, lag, vz, h0 = pars
-    densmod  = FlatSandwich_Density
-    velopars = (vf,lag,0.,vz)
-    denspars = (1E-05,h0)
+    # vf, lag, vz, h0 = pars
+    # densmod  = FlatSandwich_Density
+    # velopars = (vf,lag,0.,vz)
+    # denspars = (1E-05,h0)
     
     ##### GaussianSandwich parameters ######
-    #vf, lag, vz, h0, sigma = pars
-    #densmod  = GaussianSandwich_Density
-    #velopars = (vf,lag,0.,vz)
-    #denspars = (1E-05,h0,sigma)
+    vf, lag, vz, h0, sigma = pars
+    densmod  = GaussianSandwich_Density
+    velopars = (vf,lag,0.,vz)
+    denspars = (1E-05,h0,sigma)
 
     mod = kinematic_model(data.lon,data.lat,velopars=velopars,densmodel=densmod,\
                           denspars=denspars,useC=True,nthreads=4)
@@ -73,12 +73,12 @@ if __name__ == '__main__':
 
     ###########################################################################
     # FlatSandwich
-    p0     = [230, 15, -5, 1]               # Initial guesses
-    labels = ["vflat", "lag","vz", "h0"]    # Names of parameters to fit
+    # p0     = [230, 15, -5, 1]               # Initial guesses
+    # labels = ["vflat", "lag","vz", "h0"]    # Names of parameters to fit
     
     # GaussianSandwich 
-    #p0 = [230, 15, -5., 5., 0.5]
-    #labels = ["vflat", "lag", "vz", "h0","sigma"]
+    p0 = [230, 15, -5., 5., 0.5]
+    labels = ["vflat", "lag", "vz", "h0","sigma"]
     ###########################################################################
 
     #Reading in sightlines
@@ -164,11 +164,11 @@ if __name__ == '__main__':
     # Plot model vs data
     # NB: you need to change the line below when changing parameters/model
     # FlatSandwich
-    model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=FlatSandwich_Density,\
-                            denspars=(1E-08,pp[3]),useC=True,nthreads=8,getSpectra=False)
+    # model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=FlatSandwich_Density,\
+    #                         denspars=(1E-08,pp[3]),useC=True,nthreads=8,getSpectra=False)
     # GaussianSandwich
-    #model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=GaussianSandwich_Density,\
-    #                        denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+    model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=GaussianSandwich_Density,\
+                            denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
     
     fig, ax = plot_datavsmodel(data,model)
     fig.savefig(f"{ion}_comp.pdf",bbox_inches='tight')

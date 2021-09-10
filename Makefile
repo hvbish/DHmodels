@@ -1,4 +1,4 @@
-CXX = g++
+CXX = g++-11
 #HEADERS     = potential.h common.h
 CXXFLAGS    = -O3 -fPIC -fopenmp 
 
