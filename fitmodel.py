@@ -54,9 +54,9 @@ def lnlike(pars,data):
     densmod  = GaussianSandwich_Density
     velopars = (vf,lag,0.,vz)
     denspars = (1E-05,h0,sigma)
-
+    # Calculating the model
     mod = kinematic_model(data.lon,data.lat,velopars=velopars,densmodel=densmod,\
-                          denspars=denspars,useC=True,nthreads=4)
+                          denspars=denspars,useC=False,nthreads=4)
     diff = np.nansum((mod.vlsr-data.vlsr)**2)
     return -diff
 
@@ -71,6 +71,8 @@ def lnprob(pars,data):
 
 if __name__ == '__main__':
 
+    densmod = GaussianSandwich_Density
+
     ###########################################################################
     # FlatSandwich
     # p0     = [230, 15, -5, 1]               # Initial guesses
@@ -81,13 +83,18 @@ if __name__ == '__main__':
     labels = ["vflat", "lag", "vz", "h0","sigma"]
     ###########################################################################
 
-    #Reading in sightlines
+    # Here we choose which ion we want to fit
+    ion = 'SiIV'
+    
+    # Print info about the model being run
+    print ("Running " + densmod.__name__ + " model...")
+    print ("Ion: " + ion)
+
+    # Reading in sightlines
     ds = pd.read_table("data/sightlines_flag_2.txt", sep=' ', skipinitialspace=True)
 
-    # Here we chose which ion we want to fit
-    ion = 'CIV'
+    # We select only the ion we have chosen to fit
     di = ds[ds['ion']==ion]
-
     # We select only latitudes below 60 deg for the fit
     glon, glat, vl = di['Glon'].values, di['Glat'].values, di['weighted_v_LSR'].values
     glon[glon>180] -= 360
