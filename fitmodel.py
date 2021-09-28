@@ -5,12 +5,13 @@ import emcee, corner,time
 from multiprocessing import Pool
 from scipy.optimize import minimize
 from scipy.stats import norm
+import os, shutil
 from DHmodels import *
 
 
 def lnprior(pars):
 
-    """##### FlatSandwich priors ######
+    #"""##### FlatSandwich priors ######
     vflat, lag, vz, h0 = pars
     if vflat<0 or lag<0 or h0<0:
         return -np.inf
@@ -23,9 +24,9 @@ def lnprior(pars):
     # Flat priors
     #pr = (0.0001<h0<10) and (0<lag<200) and (200<vflat<280) and (-20<vz<20)
     #prior = 0 if pr else -np.inf
-    """
+    #"""
     
-    #"""##### GaussianSandwich priors ######
+    """##### GaussianSandwich priors ######
     vflat, lag, vz, h0, sigma = pars
     if vflat<0 or lag<0 or h0<0 or sigma<0:
         return -np.inf
@@ -36,7 +37,7 @@ def lnprior(pars):
     h_prior   = norm.pdf(h0,loc=5,scale=2)
     sig_prior = norm.pdf(sigma,loc=1,scale=0.5)
     prior = np.log(h_prior*lag_prior*vz_prior*vf_prior*sig_prior)
-    #"""
+    """
 
     return prior
 
@@ -44,16 +45,18 @@ def lnprior(pars):
 def lnlike(pars,data):
     
     ##### FlatSandwich parameters ######
-    # vf, lag, vz, h0 = pars
-    # densmod  = FlatSandwich_Density
-    # velopars = (vf,lag,0.,vz)
-    # denspars = (1E-05,h0)
+    vf, lag, vz, h0 = pars
+    densmod  = FlatSandwich_Density
+    velopars = (vf,lag,0.,vz)
+    denspars = (1E-05,h0)
     
     ##### GaussianSandwich parameters ######
-    vf, lag, vz, h0, sigma = pars
-    densmod  = GaussianSandwich_Density
-    velopars = (vf,lag,0.,vz)
-    denspars = (1E-05,h0,sigma)
+    # vf, lag, vz, h0, sigma = pars
+    # densmod  = GaussianSandwich_Density
+    # velopars = (vf,lag,0.,vz)
+    # denspars = (1E-05,h0,sigma)
+
+
     # Calculating the model
     mod = kinematic_model(data.lon,data.lat,velopars=velopars,densmodel=densmod,\
                           denspars=denspars,useC=False,nthreads=4)
@@ -71,27 +74,35 @@ def lnprob(pars,data):
 
 if __name__ == '__main__':
 
-    densmod = GaussianSandwich_Density
+    densmod = FlatSandwich_Density
 
     ###########################################################################
     # FlatSandwich
-    # p0     = [230, 15, -5, 1]               # Initial guesses
-    # labels = ["vflat", "lag","vz", "h0"]    # Names of parameters to fit
+    p0     = [230, 15, -5, 1]               # Initial guesses
+    labels = ["vflat", "lag","vz", "h0"]    # Names of parameters to fit
     
     # GaussianSandwich 
-    p0 = [230, 15, -5., 5., 0.5]
-    labels = ["vflat", "lag", "vz", "h0","sigma"]
+    # p0 = [230, 15, -5., 5., 0.5]
+    # labels = ["vflat", "lag", "vz", "h0","sigma"]
     ###########################################################################
 
     # Here we choose which ion we want to fit
-    ion = 'SiIV'
+    ion = 'CIV'
+
+    # Choose which HVC flag we want
+    HVC_flag = '3'
+
+    # Create directory structure to save output
+    dir = './runs/hvc_flag_' + HVC_flag + '/' + densmod.__name__.split("_")[0] + '/'
+    shutil.rmtree(dir, ignore_errors=True) # Remove directory if it already exists
+    os.makedirs(dir)
     
     # Print info about the model being run
     print ("Running " + densmod.__name__ + " model...")
     print ("Ion: " + ion)
 
     # Reading in sightlines
-    ds = pd.read_table("data/sightlines_flag_2.txt", sep=' ', skipinitialspace=True)
+    ds = pd.read_table("data/sightlines_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
 
     # We select only the ion we have chosen to fit
     di = ds[ds['ion']==ion]
@@ -124,7 +135,7 @@ if __name__ == '__main__':
         print("Computational time {0:.1f} minutes".format(multi_time/60.))
 
     # Saving samples
-    fits.writeto(f"{ion}_samples.fits",np.float32(sampler.get_chain()),overwrite=True)
+    fits.writeto(f"{dir}/{ion}_samples.fits",np.float32(sampler.get_chain()),overwrite=True)
 
     # Plotting chains 
     fig, axes = plt.subplots(ndim, figsize=(10, 7), sharex=True)
@@ -137,7 +148,7 @@ if __name__ == '__main__':
         ax.yaxis.set_label_coords(-0.1, 0.5)
 
     axes[-1].set_xlabel("step number")
-    fig.savefig(f"{ion}_chains.png")
+    fig.savefig(f"{dir}/{ion}_chains.png")
 
     # Burn-in
     burnin = 100
@@ -166,16 +177,16 @@ if __name__ == '__main__':
 
     fig = corner.corner(samples, truths=pp, labels=labels, show_titles=True, title_kwargs={"fontsize": lsize},\
                 truth_color='firebrick') #,fill_contours=True,levels=levels)
-    fig.savefig(f"{ion}_corner.pdf",bbox_inches='tight')
+    fig.savefig(f"{dir}/{ion}_corner.pdf",bbox_inches='tight')
 
     # Plot model vs data
     # NB: you need to change the line below when changing parameters/model
     # FlatSandwich
-    # model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=FlatSandwich_Density,\
-    #                         denspars=(1E-08,pp[3]),useC=True,nthreads=8,getSpectra=False)
+    model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=FlatSandwich_Density,\
+                            denspars=(1E-08,pp[3]),useC=True,nthreads=8,getSpectra=False)
     # GaussianSandwich
-    model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=GaussianSandwich_Density,\
-                            denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+    # model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=GaussianSandwich_Density,\
+    #                         denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
     
     fig, ax = plot_datavsmodel(data,model)
-    fig.savefig(f"{ion}_comp.pdf",bbox_inches='tight')
+    fig.savefig(f"{dir}/{ion}_comp.pdf",bbox_inches='tight')
