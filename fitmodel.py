@@ -5,7 +5,7 @@ import emcee, corner,time
 from multiprocessing import Pool
 from scipy.optimize import minimize
 from scipy.stats import norm, chisquare
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error
 import os, shutil
 from DHmodels import *
 
@@ -51,8 +51,8 @@ def lnprior(pars):
         vf_prior  = norm.pdf(vflat,loc=240,scale=20)
         lag_prior = norm.pdf(lag,loc=10,scale=2)
         vz_prior  = norm.pdf(vz,loc=0,scale=10)
-        R_prior = norm.pdf(R0,loc=3,scale=1) # HB 10/8/21: Is this reasonable?
-        h_prior   = norm.pdf(h0,loc=5,scale=2)
+        R_prior = norm.pdf(R0,loc=5,scale=1) # HB 10/8/21: Is this reasonable?
+        h_prior   = norm.pdf(h0,loc=3,scale=2)
         prior = np.log(h_prior*lag_prior*vz_prior*vf_prior*R_prior)
 
     return prior
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         # Output parameters to terminal and a text file
         print ("\n MCMC parameters:")
         pp = []
-        with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}_comp.txt",'w') as paramfile:
+        with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}.txt",'w') as paramfile:
             for i in range(ndim):
                 mcmc = np.percentile(samples[:, i], [15.865, 50, 84.135])
                 q = np.diff(mcmc)
@@ -236,7 +236,11 @@ if __name__ == '__main__':
 
         # Calculate goodness of fit
         r_squared = r2_score(data.vlsr, model.vlsr, sample_weight=None, multioutput='uniform_average')
-        print (" R-squared = ",round(r_squared,2),'\n\n')
-        with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}_comp.txt",'a') as paramfile:
+        RMS = np.sqrt(mean_squared_error(data.vlsr, model.vlsr))
+        print (" R-squared = ",round(r_squared,4),'\n\n')
+        print (" RMS error = ",round(RMS,4),'\n\n')
+        with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}.txt",'a') as paramfile:
             rsqtxt = "%10s %10.3f %+10.3f %+10.3f"%('R_squared',r_squared, -1, -1)
+            rmstxt = "%10s %10.3f %+10.3f %+10.3f"%('RMSE',     RMS,       -1, -1)
             paramfile.write(rsqtxt + '\n')
+            paramfile.write(rmstxt + '\n')
