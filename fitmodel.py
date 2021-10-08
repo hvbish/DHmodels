@@ -4,7 +4,8 @@ from astropy.io import fits
 import emcee, corner,time
 from multiprocessing import Pool
 from scipy.optimize import minimize
-from scipy.stats import norm
+from scipy.stats import norm, chisquare
+from sklearn.metrics import r2_score
 import os, shutil
 from DHmodels import *
 
@@ -74,7 +75,9 @@ def lnprob(pars,data):
 
 if __name__ == '__main__':
 
-    densmod = FlatSandwich_Density
+    densmod = FlatSandwich_Density # Choose density model
+    ion = 'CIV' # Choose which ion we want to fit: CIV, SiIV, CII*, SiII, SII, FeII, NiII, NV
+    HVC_flag = '3' # Choose which HVC flag we want
 
     ###########################################################################
     # FlatSandwich
@@ -86,16 +89,10 @@ if __name__ == '__main__':
     # labels = ["vflat", "lag", "vz", "h0","sigma"]
     ###########################################################################
 
-    # Here we choose which ion we want to fit
-    ion = 'CIV'
-
-    # Choose which HVC flag we want
-    HVC_flag = '3'
-
     # Create directory structure to save output
     dir = './runs/hvc_flag_' + HVC_flag + '/' + densmod.__name__.split("_")[0] + '/'
-    shutil.rmtree(dir, ignore_errors=True) # Remove directory if it already exists
-    os.makedirs(dir)
+    # shutil.rmtree(dir, ignore_errors=True) # Remove directory if it already exists
+    os.makedirs(dir, exist_ok=True)
     
     # Print info about the model being run
     print ("Running " + densmod.__name__ + " model...")
@@ -155,14 +152,19 @@ if __name__ == '__main__':
     thin = 1
     samples = sampler.get_chain(discard=burnin, thin=thin, flat=True)
 
+    # Output parameters to terminal and a text file
     print ("\n MCMC parameters:")
     pp = []
-    for i in range(ndim):
-        mcmc = np.percentile(samples[:, i], [15.865, 50, 84.135])
-        q = np.diff(mcmc)
-        txt = "%10s = %10.3f %+10.3f %+10.3f"%(labels[i],mcmc[1], -q[0], q[1])
-        print (txt)
-        pp.append(mcmc[1])
+    with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}_comp.txt",'w') as paramfile:
+        for i in range(ndim):
+            mcmc = np.percentile(samples[:, i], [15.865, 50, 84.135])
+            q = np.diff(mcmc)
+            txt = "%10s = %10.3f %+10.3f %+10.3f"%(labels[i],mcmc[1], -q[0], q[1])
+            print (txt) # Output to Terminal
+            paramfile.write(txt.split("=")[0]+txt.split("=")[1]+'\n') # Write to file
+            pp.append(mcmc[1])
+    
+
     
     # Autocorrelation function
     #tau = sampler.get_autocorr_time(quiet=True)
@@ -189,4 +191,13 @@ if __name__ == '__main__':
     #                         denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
     
     fig, ax = plot_datavsmodel(data,model)
+
     fig.savefig(f"{dir}/{ion}_comp.pdf",bbox_inches='tight')
+
+
+    # Calculate goodness of fit
+    r_squared = r2_score(data.vlsr, model.vlsr, sample_weight=None, multioutput='uniform_average')
+    print (" R-squared = ",round(r_squared,2))
+    with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}_comp.txt",'a') as paramfile:
+        rsqtxt = "%10s %10.3f %+10.3f %+10.3f"%('R_squared',r_squared, -1, -1)
+        paramfile.write(rsqtxt + '\n')
