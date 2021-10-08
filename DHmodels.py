@@ -134,7 +134,6 @@ def GaussianSandwich_Density(R,z,pars):
     return dens
     
 def FlatSandwich_Density(lon,lat,velopars,denspars):
-            
     rotmodpars = velopars[0:2]
     vR = velopars[2]
     vz = np.full(len(lon),velopars[3])
