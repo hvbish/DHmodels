@@ -7,6 +7,7 @@ from scipy.optimize import minimize
 from scipy.stats import norm, chisquare
 from sklearn.metrics import r2_score, mean_squared_error
 import os, shutil
+from datetime import datetime
 from DHmodels import *
 
 
@@ -96,7 +97,11 @@ def lnprob(pars,data):
 
 if __name__ == '__main__':
 
-    densmod = RadialVerticalExponential_Density # Choose density model
+    # Choose density model
+    # densmod = FlatSandwich_Density 
+    # densmod = GaussianSandwich_Density 
+    densmod = RadialVerticalExponential_Density 
+
     # ion = 'CIV' # Choose which ion we want to fit: CIV, SiIV, CII*, SiII, SII, FeII, NiII, NV
     HVC_flag = '3' # Choose which HVC flag we want
 
@@ -141,6 +146,7 @@ if __name__ == '__main__':
         data = Sightlines()
         data.add_sightlines(glon[m],glat[m],vl[m],None,None)
         print (f"Sightlines to fit: {len(data.lon)}")
+        print (f"Start time: {datetime.now().strftime('%H:%M:%S')}")
 
         nll = lambda *args: -lnprob(*args)
         
@@ -237,10 +243,10 @@ if __name__ == '__main__':
         # Calculate goodness of fit
         r_squared = r2_score(data.vlsr, model.vlsr, sample_weight=None, multioutput='uniform_average')
         RMS = np.sqrt(mean_squared_error(data.vlsr, model.vlsr))
-        print (" R-squared = ",round(r_squared,4),'\n\n')
+        print (" R-squared = ",round(r_squared,4))
         print (" RMS error = ",round(RMS,4),'\n\n')
         with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}.txt",'a') as paramfile:
-            rsqtxt = "%10s %10.3f %+10.3f %+10.3f"%('R_squared',r_squared, -1, -1)
-            rmstxt = "%10s %10.3f %+10.3f %+10.3f"%('RMSE',     RMS,       -1, -1)
+            rsqtxt = "%10s %10.3f %+10s %+10s"%('R_squared',r_squared, -999, -999)
+            rmstxt = "%10s %10.3f %+10s %+10s"%('RMS',     RMS,       -999, -999)
             paramfile.write(rsqtxt + '\n')
             paramfile.write(rmstxt + '\n')
