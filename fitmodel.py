@@ -56,6 +56,18 @@ def lnprior(pars):
         h_prior   = norm.pdf(h0,loc=3,scale=2)
         prior = np.log(h_prior*lag_prior*vz_prior*vf_prior*R_prior)
 
+    ##### VerticalExponential priors ######
+    elif densmod == VerticalExponential_Density:
+        vflat, lag, vz, h0 = pars
+        if vflat<0 or lag<0 or R0<0 or h0<0:
+            return -np.inf
+        # Gaussian priors (pdfs)
+        vf_prior  = norm.pdf(vflat,loc=240,scale=20)
+        lag_prior = norm.pdf(lag,loc=10,scale=2)
+        vz_prior  = norm.pdf(vz,loc=0,scale=10)
+        h_prior   = norm.pdf(h0,loc=3,scale=2)
+        prior = np.log(h_prior*lag_prior*vz_prior*vf_prior)
+
     return prior
 
 
@@ -79,6 +91,12 @@ def lnlike(pars,data):
         velopars = (vf,lag,0.,vz)
         denspars = (1E-05, R0, h0)
 
+    ##### VerticalExponential parameters ######
+    elif densmod == VerticalExponential_Density:
+        vf, lag, vz, h0 = pars # HB 10/8/21: Is this correct?
+        velopars = (vf,lag,0.,vz)
+        denspars = (1E-05, h0)
+
 
     # Calculating the model
     mod = kinematic_model(data.lon,data.lat,velopars=velopars,densmodel=densmod,\
@@ -100,7 +118,8 @@ if __name__ == '__main__':
     # Choose density model
     # densmod = FlatSandwich_Density 
     # densmod = GaussianSandwich_Density 
-    densmod = RadialVerticalExponential_Density 
+    # densmod = RadialVerticalExponential_Density 
+    densmod = VerticalExponential_Density 
 
     # ion = 'CIV' # Choose which ion we want to fit: CIV, SiIV, CII*, SiII, SII, FeII, NiII, NV
     HVC_flag = '3' # Choose which HVC flag we want
@@ -122,6 +141,11 @@ if __name__ == '__main__':
         elif densmod == RadialVerticalExponential_Density:
             p0 = [230, 15, -5., 3., 5.] # HB 10/8/21 Is this reasonable?
             labels = ["vflat", "lag", "vz", "R0","h0"]
+
+        # RadialVerticalExponential 
+        elif densmod == VerticalExponential_Density:
+            p0 = [230, 15, -5., 3., 5.] # HB 10/8/21 Is this reasonable?
+            labels = ["vflat", "lag", "vz", "h0"]
         ###########################################################################
 
         # Create directory structure to save output
@@ -233,6 +257,11 @@ if __name__ == '__main__':
         elif densmod == RadialVerticalExponential_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=RadialVerticalExponential_Density,\
                                     denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+
+        # VerticalExponential
+        elif densmod == VerticalExponential_Density:
+            model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=VerticalExponential_Density,\
+                                    denspars=(1E-08,pp[3]),useC=True,nthreads=8)
         ###########################################################################
         
         fig, ax = plot_datavsmodel(data,model)
