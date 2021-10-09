@@ -43,6 +43,19 @@ def lnprior(pars):
         prior = np.log(h_prior*lag_prior*vz_prior*vf_prior*sig_prior)
     #"""
 
+    ##### ThickSandwich priors ######
+    elif densmod == ThickSandwich_Density:
+        vflat, lag, vz, hmin, hmax = pars
+        if vflat<0 or lag<0 or hmin<0 or hmax<0:
+            return -np.inf
+        # Gaussian priors (pdfs)
+        vf_prior  = norm.pdf(vflat,loc=240,scale=20)
+        lag_prior = norm.pdf(lag,loc=10,scale=2)
+        vz_prior  = norm.pdf(vz,loc=0,scale=10)
+        hmin_prior   = norm.pdf(hmin,loc=3,scale=2)
+        hmax_prior = norm.pdf(hmax,loc=5,scale=0.5)
+        prior = np.log(hmin_prior*hmax_prior*lag_prior*vz_prior*vf_prior)
+
     ##### RadialVerticalExponential priors ######
     elif densmod == RadialVerticalExponential_Density:
         vflat, lag, vz, R0, h0 = pars
@@ -85,6 +98,12 @@ def lnlike(pars,data):
         velopars = (vf,lag,0.,vz)
         denspars = (1E-05,h0,sigma)
 
+    ##### ThickSandwich parameters ######
+    elif densmod == ThickSandwich_Density:
+        vf, lag, vz, hmin, hmax = pars
+        velopars = (vf,lag,0.,vz)
+        denspars = (1E-05,hmin,hmax)
+
     ##### RadialVerticalExponential parameters ######
     elif densmod == RadialVerticalExponential_Density:
         vf, lag, vz, R0, h0 = pars # HB 10/8/21: Is this correct?
@@ -117,9 +136,10 @@ if __name__ == '__main__':
 
     # Choose density model
     # densmod = FlatSandwich_Density 
-    # densmod = GaussianSandwich_Density 
+    # densmod = GaussianSandwich_Density
+    densmod = ThickSandwich_Density 
     # densmod = RadialVerticalExponential_Density 
-    densmod = VerticalExponential_Density 
+    # densmod = VerticalExponential_Density 
 
     # ion = 'CIV' # Choose which ion we want to fit: CIV, SiIV, CII*, SiII, SII, FeII, NiII, NV
     HVC_flag = '3' # Choose which HVC flag we want
@@ -136,6 +156,11 @@ if __name__ == '__main__':
         elif densmod == GaussianSandwich_Density:
             p0 = [230, 15, -5., 5., 0.5]
             labels = ["vflat", "lag", "vz", "h0","sigma"]
+
+        # ThickSandwich 
+        elif densmod == ThickSandwich_Density:
+            p0 = [230, 15, -5., 3., 5.]
+            labels = ["vflat", "lag", "vz", "hmin","hmax"]
 
         # RadialVerticalExponential 
         elif densmod == RadialVerticalExponential_Density:
@@ -251,6 +276,11 @@ if __name__ == '__main__':
         # GaussianSandwich
         elif densmod == GaussianSandwich_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=GaussianSandwich_Density,\
+                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+
+        # ThickSandwich
+        elif densmod == ThickSandwich_Density:
+            model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=ThickSandwich_Density,\
                                     denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
 
         # RadialVerticalExponential
