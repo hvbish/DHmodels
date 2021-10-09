@@ -59,7 +59,7 @@ def lnprior(pars):
     ##### VerticalExponential priors ######
     elif densmod == VerticalExponential_Density:
         vflat, lag, vz, h0 = pars
-        if vflat<0 or lag<0 or R0<0 or h0<0:
+        if vflat<0 or lag<0 or h0<0:
             return -np.inf
         # Gaussian priors (pdfs)
         vf_prior  = norm.pdf(vflat,loc=240,scale=20)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
         # RadialVerticalExponential 
         elif densmod == VerticalExponential_Density:
-            p0 = [230, 15, -5., 3., 5.] # HB 10/8/21 Is this reasonable?
+            p0 = [230, 15, -5., 5.] # HB 10/8/21 Is this reasonable?
             labels = ["vflat", "lag", "vz", "h0"]
         ###########################################################################
 
