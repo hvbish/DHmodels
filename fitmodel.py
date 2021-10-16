@@ -13,7 +13,7 @@ from DHmodels import *
 
 def lnprior(pars):
 
-    #"""##### FlatSandwich priors ######
+    ##### FlatSandwich priors ######
     if densmod == FlatSandwich_Density:
         vflat, lag, vz, h0 = pars
         if vflat<0 or lag<0 or h0<0:
@@ -27,9 +27,8 @@ def lnprior(pars):
         # Flat priors
         #pr = (0.0001<h0<10) and (0<lag<200) and (200<vflat<280) and (-20<vz<20)
         #prior = 0 if pr else -np.inf
-    #"""
     
-    #"""##### GaussianSandwich priors ######
+    ##### GaussianSandwich priors ######
     elif densmod == GaussianSandwich_Density:
         vflat, lag, vz, h0, sigma = pars
         if vflat<0 or lag<0 or h0<0 or sigma<0:
@@ -41,7 +40,6 @@ def lnprior(pars):
         h_prior   = norm.pdf(h0,loc=5,scale=2)
         sig_prior = norm.pdf(sigma,loc=1,scale=0.5)
         prior = np.log(h_prior*lag_prior*vz_prior*vf_prior*sig_prior)
-    #"""
 
     ##### ThickSandwich priors ######
     elif densmod == ThickSandwich_Density:
@@ -52,8 +50,8 @@ def lnprior(pars):
         vf_prior  = norm.pdf(vflat,loc=240,scale=20)
         lag_prior = norm.pdf(lag,loc=10,scale=2)
         vz_prior  = norm.pdf(vz,loc=0,scale=10)
-        hmin_prior   = norm.pdf(hmin,loc=3,scale=2)
-        hmax_prior = norm.pdf(hmax,loc=5,scale=0.5)
+        hmin_prior   = norm.pdf(hmin,loc=3,scale=1)
+        hmax_prior = norm.pdf(hmax,loc=5,scale=1)
         prior = np.log(hmin_prior*hmax_prior*lag_prior*vz_prior*vf_prior)
 
     ##### RadialVerticalExponential priors ######
@@ -80,6 +78,18 @@ def lnprior(pars):
         vz_prior  = norm.pdf(vz,loc=0,scale=10)
         h_prior   = norm.pdf(h0,loc=3,scale=2)
         prior = np.log(h_prior*lag_prior*vz_prior*vf_prior)
+
+    ##### Constant priors ######
+    # elif densmod == Constant_Density:
+    #     vflat, lag, vz, h0 = pars
+    #     if vflat<0 or lag<0 or h0<0:
+    #         return -np.inf
+    #     # Gaussian priors (pdfs)
+    #     vf_prior  = norm.pdf(vflat,loc=240,scale=20)
+    #     lag_prior = norm.pdf(lag,loc=10,scale=2)
+    #     vz_prior  = norm.pdf(vz,loc=0,scale=10)
+    #     h_prior   = norm.pdf(h0,loc=3,scale=2)
+    #     prior = np.log(h_prior*lag_prior*vz_prior*vf_prior)
 
     return prior
 
@@ -116,6 +126,12 @@ def lnlike(pars,data):
         velopars = (vf,lag,0.,vz)
         denspars = (1E-05, h0)
 
+    ##### Constant parameters ######
+    # elif densmod == Constant_Density:
+    #     vf, lag, vz, h0 = pars # HB 10/8/21: Is this correct?
+    #     velopars = (vf,lag,0.,vz)
+    #     denspars = (1E-05, h0)
+
 
     # Calculating the model
     mod = kinematic_model(data.lon,data.lat,velopars=velopars,densmodel=densmod,\
@@ -140,6 +156,7 @@ if __name__ == '__main__':
     densmod = ThickSandwich_Density 
     # densmod = RadialVerticalExponential_Density 
     # densmod = VerticalExponential_Density 
+    # densmod = Constant_Density 
 
     # ion = 'CIV' # Choose which ion we want to fit: CIV, SiIV, CII*, SiII, SII, FeII, NiII, NV
     HVC_flag = '3' # Choose which HVC flag we want
@@ -167,10 +184,15 @@ if __name__ == '__main__':
             p0 = [230, 15, -5., 3., 5.] # HB 10/8/21 Is this reasonable?
             labels = ["vflat", "lag", "vz", "R0","h0"]
 
-        # RadialVerticalExponential 
+        # VerticalExponential 
         elif densmod == VerticalExponential_Density:
             p0 = [230, 15, -5., 5.] # HB 10/8/21 Is this reasonable?
             labels = ["vflat", "lag", "vz", "h0"]
+
+        # Constant 
+        # elif densmod == Constant_Density:
+        #     p0 = [230, 15, -5., 5.] # HB 10/8/21 Is this reasonable?
+        #     labels = ["vflat", "lag", "vz", "h0"]
         ###########################################################################
 
         # Create directory structure to save output
@@ -292,6 +314,11 @@ if __name__ == '__main__':
         elif densmod == VerticalExponential_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=VerticalExponential_Density,\
                                     denspars=(1E-08,pp[3]),useC=True,nthreads=8)
+
+        # Constant
+        # elif densmod == Constant_Density:
+        #     model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=Constant_Density,\
+        #                             denspars=(1E-08,pp[3]),useC=True,nthreads=8)
         ###########################################################################
         
         fig, ax = plot_datavsmodel(data,model)
@@ -300,8 +327,16 @@ if __name__ == '__main__':
 
 
         # Calculate goodness of fit
-        r_squared = r2_score(data.vlsr, model.vlsr, sample_weight=None, multioutput='uniform_average')
-        RMS = np.sqrt(mean_squared_error(data.vlsr, model.vlsr))
+        try:
+            r_squared = r2_score(data.vlsr, model.vlsr, sample_weight=None, multioutput='uniform_average')
+        except:
+            r_squared = -999
+        try:
+            MSE = mean_squared_error(data.vlsr, model.vlsr,squared=False)# Mean squared error
+            # MSE = mean_squared_error(data.vlsr, model.vlsr)# Mean squared error
+            # RMS = np.sign(MSE)*np.sqrt(abs(MSE))
+        except:
+            RMS = 999
         print (" R-squared = ",round(r_squared,4))
         print (" RMS error = ",round(RMS,4),'\n\n')
         with open(f"{dir}/params_" + densmod.__name__.split("_")[0] + f"_{ion}.txt",'a') as paramfile:

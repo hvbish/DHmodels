@@ -97,6 +97,7 @@ def rotationModel(R,z,pars):
 ##########################################################################
 def Constant_Density(R, z, pars):
     # Density field is the same everywhere: dens(R,z) = const
+    rho0, z0 = pars
     return pars[0];
 
 def VerticalExponential_Density(R,z,pars):
