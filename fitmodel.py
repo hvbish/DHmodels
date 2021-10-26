@@ -44,7 +44,7 @@ def lnprior(pars):
     ##### ThickSandwich priors ######
     elif densmod == ThickSandwich_Density:
         vflat, lag, vz, hmin, hmax = pars
-        if vflat<0 or lag<0 or hmin<0 or hmax<0:
+        if vflat<0 or lag<0 or hmin<0 or hmax<0 or hmin>hmax:
             return -np.inf
         # Gaussian priors (pdfs)
         vf_prior  = norm.pdf(vflat,loc=240,scale=20)
@@ -151,14 +151,15 @@ def lnprob(pars,data):
 if __name__ == '__main__':
 
     # Choose density model
-    # densmod = FlatSandwich_Density 
+    densmod = FlatSandwich_Density 
     # densmod = GaussianSandwich_Density
-    densmod = ThickSandwich_Density 
+    # densmod = ThickSandwich_Density 
     # densmod = RadialVerticalExponential_Density 
     # densmod = VerticalExponential_Density 
     # densmod = Constant_Density 
 
-    # ion = 'CIV' # Choose which ion we want to fit: CIV, SiIV, CII*, SiII, SII, FeII, NiII, NV
+    run_in_parallel = True # If False, code will use a single thread (takes much longer)
+
     HVC_flag = '3' # Choose which HVC flag we want
 
     for ion in ['CIV', 'SiIV', 'CII*', 'SiII', 'SII', 'FeII', 'NiII', 'NV']:
@@ -202,7 +203,7 @@ if __name__ == '__main__':
         
         # Print info about the model being run
         print ("Running " + densmod.__name__ + " model...")
-        print ("Ion: " + ion)
+        
 
         # Reading in sightlines
         ds = pd.read_table("data/sightlines_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
@@ -216,7 +217,10 @@ if __name__ == '__main__':
         # Just storing the data in a Sightline object for convenience
         data = Sightlines()
         data.add_sightlines(glon[m],glat[m],vl[m],None,None)
+
+        print ("               Ion: " + ion)
         print (f"Sightlines to fit: {len(data.lon)}")
+        print ("          HVC mask: " + HVC_flag)
         print (f"Start time: {datetime.now().strftime('%H:%M:%S')}")
 
         nll = lambda *args: -lnprob(*args)
@@ -231,15 +235,23 @@ if __name__ == '__main__':
         pos = p0 + 1e-1*np.random.randn(nwalkers,ndim)
 
         print ("\n Running MCMC...")
-        with Pool() as pool:
-            sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[data], pool=pool)
+        if run_in_parallel:
+            with Pool() as pool:
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[data], pool=pool)
+                start = time.time()
+                res = sampler.run_mcmc(pos, nsteps, progress=True)
+                multi_time = time.time()-start
+                print("Computational time {0:.1f} minutes".format(multi_time/60.))
+        else:
+            print('Running in serial. This may take a while.')
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[data])
             start = time.time()
             res = sampler.run_mcmc(pos, nsteps, progress=True)
             multi_time = time.time()-start
             print("Computational time {0:.1f} minutes".format(multi_time/60.))
 
         # Saving samples
-        fits.writeto(f"{dir}/{ion}_samples.fits",np.float32(sampler.get_chain()),overwrite=True)
+        fits.writeto(f"{dir}{ion}_samples.fits",np.float32(sampler.get_chain()),overwrite=True)
 
         # Plotting chains 
         fig, axes = plt.subplots(ndim, figsize=(10, 7), sharex=True)
@@ -332,9 +344,10 @@ if __name__ == '__main__':
         except:
             r_squared = -999
         try:
-            MSE = mean_squared_error(data.vlsr, model.vlsr,squared=False)# Mean squared error
-            # MSE = mean_squared_error(data.vlsr, model.vlsr)# Mean squared error
-            # RMS = np.sign(MSE)*np.sqrt(abs(MSE))
+            # Mean squared error
+            # RMS = mean_squared_error(data.vlsr, model.vlsr,squared=False) # Throws an error?
+            MSE = mean_squared_error(data.vlsr, model.vlsr)# Mean squared error
+            RMS = np.sign(MSE)*np.sqrt(abs(MSE))
         except:
             RMS = 999
         print (" R-squared = ",round(r_squared,4))
