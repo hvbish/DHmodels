@@ -97,8 +97,8 @@ def rotationModel(R,z,pars):
 ##########################################################################
 def Constant_Density(R, z, pars):
     # Density field is the same everywhere: dens(R,z) = const
-    rho0, z0 = pars
-    return pars[0];
+    rho0 = pars
+    return np.full(shape=len(R),fill_value=pars)
 
 def VerticalExponential_Density(R,z,pars):
     # Density is constant in R, but drops exponentially in z: 

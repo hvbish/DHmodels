@@ -80,16 +80,15 @@ def lnprior(pars):
         prior = np.log(h_prior*lag_prior*vz_prior*vf_prior)
 
     ##### Constant priors ######
-    # elif densmod == Constant_Density:
-    #     vflat, lag, vz, h0 = pars
-    #     if vflat<0 or lag<0 or h0<0:
-    #         return -np.inf
-    #     # Gaussian priors (pdfs)
-    #     vf_prior  = norm.pdf(vflat,loc=240,scale=20)
-    #     lag_prior = norm.pdf(lag,loc=10,scale=2)
-    #     vz_prior  = norm.pdf(vz,loc=0,scale=10)
-    #     h_prior   = norm.pdf(h0,loc=3,scale=2)
-    #     prior = np.log(h_prior*lag_prior*vz_prior*vf_prior)
+    elif densmod == Constant_Density:
+        vflat, lag, vz = pars
+        if vflat<0 or lag<0:
+            return -np.inf
+        # Constant priors (pdfs)
+        vf_prior  = norm.pdf(vflat,loc=240,scale=20)
+        lag_prior = norm.pdf(lag,loc=10,scale=2)
+        vz_prior  = norm.pdf(vz,loc=0,scale=10)
+        prior = np.log(lag_prior*vz_prior*vf_prior)
 
     return prior
 
@@ -116,21 +115,21 @@ def lnlike(pars,data):
 
     ##### RadialVerticalExponential parameters ######
     elif densmod == RadialVerticalExponential_Density:
-        vf, lag, vz, R0, h0 = pars # HB 10/8/21: Is this correct?
+        vf, lag, vz, R0, h0 = pars
         velopars = (vf,lag,0.,vz)
         denspars = (1E-05, R0, h0)
 
     ##### VerticalExponential parameters ######
     elif densmod == VerticalExponential_Density:
-        vf, lag, vz, h0 = pars # HB 10/8/21: Is this correct?
+        vf, lag, vz, h0 = pars
         velopars = (vf,lag,0.,vz)
         denspars = (1E-05, h0)
 
     ##### Constant parameters ######
-    # elif densmod == Constant_Density:
-    #     vf, lag, vz, h0 = pars # HB 10/8/21: Is this correct?
-    #     velopars = (vf,lag,0.,vz)
-    #     denspars = (1E-05, h0)
+    elif densmod == Constant_Density:
+        vf, lag, vz = pars # HB 10/8/21: Is this correct?
+        velopars = (vf,lag,0.,vz)
+        denspars = (1E-05)
 
 
     # Calculating the model
@@ -151,12 +150,12 @@ def lnprob(pars,data):
 if __name__ == '__main__':
 
     # Choose density model
-    densmod = FlatSandwich_Density 
+    # densmod = FlatSandwich_Density 
     # densmod = GaussianSandwich_Density
     # densmod = ThickSandwich_Density 
     # densmod = RadialVerticalExponential_Density 
     # densmod = VerticalExponential_Density 
-    # densmod = Constant_Density 
+    densmod = Constant_Density 
 
     run_in_parallel = True # If False, code will use a single thread (takes much longer)
 
@@ -191,9 +190,9 @@ if __name__ == '__main__':
             labels = ["vflat", "lag", "vz", "h0"]
 
         # Constant 
-        # elif densmod == Constant_Density:
-        #     p0 = [230, 15, -5., 5.] # HB 10/8/21 Is this reasonable?
-        #     labels = ["vflat", "lag", "vz", "h0"]
+        elif densmod == Constant_Density:
+            p0 = [230, 15, -5.] # HB 10/8/21 Is this reasonable?
+            labels = ["vflat", "lag", "vz"]
         ###########################################################################
 
         # Create directory structure to save output
@@ -218,9 +217,9 @@ if __name__ == '__main__':
         data = Sightlines()
         data.add_sightlines(glon[m],glat[m],vl[m],None,None)
 
-        print ("               Ion: " + ion)
-        print (f"Sightlines to fit: {len(data.lon)}")
-        print ("          HVC mask: " + HVC_flag)
+        print ( "               Ion: " + ion)
+        print (f" Sightlines to fit: {len(data.lon)}")
+        print ( "          HVC mask: " + HVC_flag)
         print (f"Start time: {datetime.now().strftime('%H:%M:%S')}")
 
         nll = lambda *args: -lnprob(*args)
@@ -282,7 +281,6 @@ if __name__ == '__main__':
                 print (txt) # Output to Terminal
                 paramfile.write(txt.split("=")[0]+txt.split("=")[1]+'\n') # Write to file
                 pp.append(mcmc[1])
-        
 
         
         # Autocorrelation function
@@ -328,9 +326,9 @@ if __name__ == '__main__':
                                     denspars=(1E-08,pp[3]),useC=True,nthreads=8)
 
         # Constant
-        # elif densmod == Constant_Density:
-        #     model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=Constant_Density,\
-        #                             denspars=(1E-08,pp[3]),useC=True,nthreads=8)
+        elif densmod == Constant_Density:
+            model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=Constant_Density,\
+                                    denspars=(1E-08),useC=False,nthreads=8)
         ###########################################################################
         
         fig, ax = plot_datavsmodel(data,model)
