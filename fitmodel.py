@@ -166,32 +166,38 @@ if __name__ == '__main__':
         ###########################################################################
         # FlatSandwich
         if densmod == FlatSandwich_Density:
+            model_name = "Flat Sandwich"
             p0     = [230, 15, -5, 1]               # Initial guesses
             labels = ["vflat", "lag","vz", "h0"]    # Names of parameters to fit
 
         # GaussianSandwich 
         elif densmod == GaussianSandwich_Density:
+            model_name = "Gaussian Sandwich"
             p0 = [230, 15, -5., 5., 0.5]
             labels = ["vflat", "lag", "vz", "h0","sigma"]
 
         # ThickSandwich 
         elif densmod == ThickSandwich_Density:
+            model_name = "Thick Sandwich"
             p0 = [230, 15, -5., 3., 5.]
             labels = ["vflat", "lag", "vz", "hmin","hmax"]
 
         # RadialVerticalExponential 
         elif densmod == RadialVerticalExponential_Density:
-            p0 = [230, 15, -5., 3., 5.] # HB 10/8/21 Is this reasonable?
+            model_name = "Radial Vertical Exponential"
+            p0 = [230, 15, -5., 3., 5.] 
             labels = ["vflat", "lag", "vz", "R0","h0"]
 
         # VerticalExponential 
         elif densmod == VerticalExponential_Density:
-            p0 = [230, 15, -5., 5.] # HB 10/8/21 Is this reasonable?
+            model_name = "Vertical Exponential"
+            p0 = [230, 15, -5., 5.] 
             labels = ["vflat", "lag", "vz", "h0"]
 
         # Constant 
         elif densmod == Constant_Density:
-            p0 = [230, 15, -5.] # HB 10/8/21 Is this reasonable?
+            model_name = "Constant"
+            p0 = [230, 15, -5.] 
             labels = ["vflat", "lag", "vz"]
         ###########################################################################
 
@@ -332,8 +338,10 @@ if __name__ == '__main__':
         ###########################################################################
         
         fig, ax = plot_datavsmodel(data,model)
-
         fig.savefig(f"{dir}/{ion}_comp.pdf",bbox_inches='tight')
+        
+        fig, ax = plot_residuals(data,model,model_name)
+        fig.savefig(f"{dir}/{ion}_residuals_mollweide.pdf",bbox_inches='tight')
 
 
         # Calculate goodness of fit
@@ -359,6 +367,6 @@ if __name__ == '__main__':
 
         # Output data & model values to a text file
         with open(f"{dir}/"  f"{ion}_" + "data-model-vels_" + densmod.__name__.split("_")[0] + ".txt",'w') as paramfile:
-            print ("data_lon", "\t", "data_lat", "\t", "data_v", "\t", "model_lon", "\t", "model_lat", "\t", "model_v") # Write header
-            for d_lon, d_lat, d_v, m_lon, m_lat, m_v in zip(data.lon, data.lat, data.vlsr, model.lon, model.lat, model.vlsr):
-                print("{: 5.4f} \t {: 5.4f} \t {: 5.4f} \t {: 5.4f}".format(d_lon, d_lat, d_v, m_lon, m_lat, m_v), file=paramfile)
+            print ("data_lon", "\t", "data_lat", "\t", "data_v", "\t", "model_v", file=paramfile) # Write header
+            for d_lon, d_lat, d_v, m_v in zip(data.lon, data.lat, data.vlsr, model.vlsr):
+                print("{: 5.4f} \t {: 5.4f} \t {: 5.4f} \t {: 5.4f}".format(d_lon, d_lat, d_v, m_v), file=paramfile)

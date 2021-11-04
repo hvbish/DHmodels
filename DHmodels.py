@@ -298,7 +298,7 @@ def plot_model(slines):
 
 def plot_datavsmodel(data,model):
     
-    fig, ax = plt.subplots(figsize=(20,20),nrows=1, ncols=2, subplot_kw= {'projection' : 'aitoff'})
+    fig, ax = plt.subplots(figsize=(20,20),nrows=1, ncols=2, subplot_kw= {'projection' : 'mollweide'})
     fig.subplots_adjust(hspace=0.15, wspace=0.05)
     ax = np.ravel(ax)
     cmap = plt.get_cmap('coolwarm')
@@ -321,4 +321,26 @@ def plot_datavsmodel(data,model):
                          ax[1].get_position().x1-ax[0].get_position().x0,0.02]) 
     cb = mpl.colorbar.ColorbarBase(ax=cbax,cmap=cmap,norm=norm,orientation='horizontal',ticklocation='top')
     cb.set_label(r"$V_\mathrm{LSR}$ (km/s)",labelpad=10)
+    return (fig, ax)
+
+def plot_residuals(data,model,model_name):
+    
+    fig, ax = plt.subplots(figsize=(10,10),nrows=1, ncols=1, subplot_kw= {'projection' : 'mollweide'})
+    fig.subplots_adjust(hspace=0.15, wspace=0.05)
+    ax = np.ravel(ax)
+    cmap = plt.get_cmap('coolwarm')
+    vmax = 40.
+    # vmax = np.nanmax(np.abs(data.vlsr-model.vlsr)) * 0.9 # Set max colorbar value to be slightly less than the max of the data
+    norm = mpl.colors.Normalize(vmin=-vmax,vmax=vmax)
+
+    ax[0].grid(True)
+    ax[0].axhline(0,c='k')
+    
+    ax[0].scatter(np.radians(data.lon),np.radians(data.lat),c=data.vlsr-model.vlsr,cmap=cmap,norm=norm,edgecolors='gray',s=70)
+    ax[0].text(0.5,-0.1,model_name,transform=ax[0].transAxes,fontsize=lsize+2,ha='center')
+
+    cbax = fig.add_axes([ax[0].get_position().x0,ax[0].get_position().y1+0.03,\
+                         ax[0].get_position().x1-ax[0].get_position().x0,0.02]) 
+    cb = mpl.colorbar.ColorbarBase(ax=cbax,cmap=cmap,norm=norm,orientation='horizontal',ticklocation='top')
+    cb.set_label(r"$v_\mathrm{data}-v_\mathrm{model}$ (km/s)",labelpad=10)
     return (fig, ax)
