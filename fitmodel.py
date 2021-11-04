@@ -89,6 +89,9 @@ def lnprior(pars):
         lag_prior = norm.pdf(lag,loc=10,scale=2)
         vz_prior  = norm.pdf(vz,loc=0,scale=10)
         prior = np.log(lag_prior*vz_prior*vf_prior)
+    
+    else:
+        raise NameError('WARNING: invalid density model in lnprior!')
 
     return prior
 
@@ -131,6 +134,9 @@ def lnlike(pars,data):
         velopars = (vf,lag,0.,vz)
         denspars = (1E-05)
 
+    else:
+        raise NameError('WARNING: invalid density model in lnlike!')
+
 
     # Calculating the model
     mod = kinematic_model(data.lon,data.lat,velopars=velopars,densmodel=densmod,\
@@ -158,6 +164,7 @@ if __name__ == '__main__':
     # densmod = Constant_Density 
 
     run_in_parallel = True # If False, code will use a single thread (takes much longer)
+    lat_lim = 60 # Only fit sightlines below this Galactic latitude
 
     HVC_flag = '3' # Choose which HVC flag we want
 
@@ -199,6 +206,9 @@ if __name__ == '__main__':
             model_name = "Constant"
             p0 = [230, 15, -5.] 
             labels = ["vflat", "lag", "vz"]
+
+        else:
+            raise NameError('WARNING: invalid density model for initial guesses!')
         ###########################################################################
 
         # Create directory structure to save output
@@ -209,7 +219,6 @@ if __name__ == '__main__':
         # Print info about the model being run
         print ("Running " + densmod.__name__ + " model...")
         
-
         # Reading in sightlines
         ds = pd.read_table("data/sightlines_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
 
@@ -218,7 +227,7 @@ if __name__ == '__main__':
         # We select only latitudes below 60 deg for the fit
         glon, glat, vl = di['Glon'].values, di['Glat'].values, di['weighted_v_LSR'].values
         glon[glon>180] -= 360
-        m = (np.abs(glat)<60)
+        m = (np.abs(glat)<lat_lim)
         # Just storing the data in a Sightline object for convenience
         data = Sightlines()
         data.add_sightlines(glon[m],glat[m],vl[m],None,None)
@@ -233,7 +242,6 @@ if __name__ == '__main__':
         # This is just to minimize the likelihood in a classical way
         soln = minimize(nll, p0, args=(data),method='Nelder-Mead')
         print ("Best-fit parameters:", soln.x)
-        
         
         # Initializing chains and walkers
         ndim, nwalkers, nsteps = len(p0), 500, 500
@@ -337,12 +345,11 @@ if __name__ == '__main__':
                                     denspars=(1E-08),useC=False,nthreads=8)
         ###########################################################################
         
+        # Plot data vs. model and residual skymaps
         fig, ax = plot_datavsmodel(data,model)
         fig.savefig(f"{dir}/{ion}_comp.pdf",bbox_inches='tight')
-        
         fig, ax = plot_residuals(data,model,model_name)
         fig.savefig(f"{dir}/{ion}_residuals_mollweide.pdf",bbox_inches='tight')
-
 
         # Calculate goodness of fit
         try:
@@ -351,7 +358,6 @@ if __name__ == '__main__':
             r_squared = -999
         try:
             # Mean squared error
-            # RMS = mean_squared_error(data.vlsr, model.vlsr,squared=False) # Throws an error?
             MSE = mean_squared_error(data.vlsr, model.vlsr)# Mean squared error
             RMS = np.sign(MSE)*np.sqrt(abs(MSE))
         except:
@@ -363,7 +369,6 @@ if __name__ == '__main__':
             rmstxt = "%10s %10.3f %+10s %+10s"%('RMS',     RMS,       -999, -999)
             paramfile.write(rsqtxt + '\n')
             paramfile.write(rmstxt + '\n')
-
 
         # Output data & model values to a text file
         with open(f"{dir}/"  f"{ion}_" + "data-model-vels_" + densmod.__name__.split("_")[0] + ".txt",'w') as paramfile:
