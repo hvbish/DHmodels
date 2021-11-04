@@ -150,12 +150,12 @@ def lnprob(pars,data):
 if __name__ == '__main__':
 
     # Choose density model
-    # densmod = FlatSandwich_Density 
+    densmod = FlatSandwich_Density 
     # densmod = GaussianSandwich_Density
     # densmod = ThickSandwich_Density 
     # densmod = RadialVerticalExponential_Density 
     # densmod = VerticalExponential_Density 
-    densmod = Constant_Density 
+    # densmod = Constant_Density 
 
     run_in_parallel = True # If False, code will use a single thread (takes much longer)
 
@@ -282,7 +282,7 @@ if __name__ == '__main__':
                 paramfile.write(txt.split("=")[0]+txt.split("=")[1]+'\n') # Write to file
                 pp.append(mcmc[1])
 
-        
+
         # Autocorrelation function
         #tau = sampler.get_autocorr_time(quiet=True)
         #burnin = int(2*np.nanmax(tau))
@@ -355,3 +355,10 @@ if __name__ == '__main__':
             rmstxt = "%10s %10.3f %+10s %+10s"%('RMS',     RMS,       -999, -999)
             paramfile.write(rsqtxt + '\n')
             paramfile.write(rmstxt + '\n')
+
+
+        # Output data & model values to a text file
+        with open(f"{dir}/"  f"{ion}_" + "data-model-vels_" + densmod.__name__.split("_")[0] + ".txt",'w') as paramfile:
+            print ("data_lon", "\t", "data_lat", "\t", "data_v", "\t", "model_lon", "\t", "model_lat", "\t", "model_v") # Write header
+            for d_lon, d_lat, d_v, m_lon, m_lat, m_v in zip(data.lon, data.lat, data.vlsr, model.lon, model.lat, model.vlsr):
+                print("{: 5.4f} \t {: 5.4f} \t {: 5.4f} \t {: 5.4f}".format(d_lon, d_lat, d_v, m_lon, m_lat, m_v), file=paramfile)
