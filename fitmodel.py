@@ -165,6 +165,7 @@ if __name__ == '__main__':
 
     run_in_parallel = True # If False, code will use a single thread (takes much longer)
     lat_lim = 60 # Only fit sightlines below this Galactic latitude
+    velocity_method = 'maxcol' # How to calculate sightline velocities. Possible values: 'Nweighted', 'maxcol'
 
     HVC_flag = '3' # Choose which HVC flag we want
 
@@ -220,7 +221,12 @@ if __name__ == '__main__':
         print ("Running " + densmod.__name__ + " model...")
         
         # Reading in sightlines
-        ds = pd.read_table("data/sightlines_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
+        if velocity_method == 'Nweighted':
+            ds = pd.read_table("data/sightlines_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
+        elif velocity_method == 'maxcol':
+            ds = pd.read_table("data/sightlines_maxN_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
+        else:
+            raise NameError('Please choose a valid velocity calculation method!')
 
         # We select only the ion we have chosen to fit
         di = ds[ds['ion']==ion]
