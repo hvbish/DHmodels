@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from astropy.io import fits
 import emcee, corner,time
+from scipy.stats.stats import pearsonr
 from multiprocessing import Pool
 from scipy.optimize import minimize
 from scipy.stats import norm, chisquare
@@ -156,20 +157,21 @@ def lnprob(pars,data):
 if __name__ == '__main__':
 
     # Choose density model
-    densmod = FlatSandwich_Density 
+    # densmod = FlatSandwich_Density 
     # densmod = GaussianSandwich_Density
-    # densmod = ThickSandwich_Density 
+    densmod = ThickSandwich_Density 
     # densmod = RadialVerticalExponential_Density 
     # densmod = VerticalExponential_Density 
     # densmod = Constant_Density 
 
     run_in_parallel = True # If False, code will use a single thread (takes much longer)
     lat_lim = 60 # Only fit sightlines below this Galactic latitude
-    velocity_method = 'maxcol' # How to calculate sightline velocities. Possible values: 'weighted', 'maxcol'
+    velocity_method = 'peakvel' # How to calculate sightline velocities. Possible values: 'weighted', 'maxcol', 'peakvel'
 
     HVC_flag = '3' # Choose which HVC flag we want
 
-    for ion in ['CIV', 'SiIV', 'CII*', 'SiII', 'SII', 'FeII', 'NiII', 'NV']:
+    # for ion in ['CIV', 'SiIV', 'CII*', 'SiII', 'SII', 'FeII', 'NiII', 'NV']:
+    for ion in ['CIV']: # For testing
         
         ###########################################################################
         # FlatSandwich
@@ -322,42 +324,121 @@ if __name__ == '__main__':
 
         # Plot model vs data
         ###########################################################################
+        # If you are using peak velocities, then return spectra so vlsr_peak can be calculated for the model
+        if velocity_method == 'peakvel':
+            print("Using model peak velocities.")
+            getSpec = True
+        else:
+            getSpec = False
+
         # FlatSandwich
         if densmod == FlatSandwich_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=FlatSandwich_Density,\
-                                    denspars=(1E-08,pp[3]),useC=True,nthreads=8,getSpectra=False)
+                                    denspars=(1E-08,pp[3]),useC=False,nthreads=8,getSpectra=getSpec)
 
         # GaussianSandwich
         elif densmod == GaussianSandwich_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=GaussianSandwich_Density,\
-                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8,getSpectra=getSpec)
 
         # ThickSandwich
         elif densmod == ThickSandwich_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=ThickSandwich_Density,\
-                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8,getSpectra=getSpec)
 
         # RadialVerticalExponential
         elif densmod == RadialVerticalExponential_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=RadialVerticalExponential_Density,\
-                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8)
+                                    denspars=(1E-08,pp[3],pp[4]),useC=True,nthreads=8,getSpectra=getSpec)
 
         # VerticalExponential
         elif densmod == VerticalExponential_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=VerticalExponential_Density,\
-                                    denspars=(1E-08,pp[3]),useC=True,nthreads=8)
+                                    denspars=(1E-08,pp[3]),useC=True,nthreads=8,getSpectra=getSpec)
 
         # Constant
         elif densmod == Constant_Density:
             model = kinematic_model(data.lon,data.lat,velopars=(pp[0],pp[1],0,pp[2]),densmodel=Constant_Density,\
-                                    denspars=(1E-08),useC=False,nthreads=8)
+                                    denspars=(1E-08),useC=False,nthreads=8,getSpectra=getSpec)
         ###########################################################################
-        
+
+        # Debugging
+        print(model)
+        print(model.vlsr[0])
+        print("Model velocities: ", model.spec_grid) # Vels (in 1 km/s steps)
+        print("Model columns: ", model.spec[1]) # Columns
+        print(model.n)
+        print(model_name + " peakvel: ", model.spec_grid[model.spec[0] == max(model.spec[0])])
+
+        # Calculate peak velocity for the model, if called for 
+        # (This maybe should be incorporated into the Sightlines class?)
+        if velocity_method == 'peakvel':
+            print("Calculating model peak velocities...")
+            X = 0.2 # What percentage of the flux you want the velocity interval to contain
+            cdf_vels = model.spec_grid
+
+            model_peakvels = []
+            # Loop through each sightline
+            for sl in range(model.n):
+                # Column density and pdf arrays (as a function of velocity)
+                print("sightline ", sl) # For debugging purposes
+                columns = model.spec[sl]
+                pdf = columns/max(columns)
+                # Get cdf
+                cdf = []
+                for el in range (len(cdf_vels)):
+                    cdf.append(np.sum(pdf[0:el]))
+                cdf = cdf/max(cdf)
+
+                ## Peak velocity calculation
+                min_velspan, v1, v2 = 9999., -999., 999.
+                min_residual = 999.
+                # Step through each pixel of the CDF, setting that pixel equal to the left limit and setting the right limit so that the interval covers X% of the flux. Save the narrowest interval.
+                for i in range(len(cdf)):
+                    temp_leftval = cdf[i]
+                    diff_array = cdf - temp_leftval - X
+                    temp_residual = np.min(np.abs(diff_array))
+                    
+                    temp_rightval = cdf[np.abs(diff_array) == temp_residual][0]
+                    temp_velspan = cdf_vels[cdf == temp_rightval] - cdf_vels[i]
+                    temp_velspan = round(temp_velspan[0],4)
+                    temp_v1, temp_v2 = cdf_vels[i], cdf_vels[cdf == temp_rightval][0]
+                    
+                    # If the flux difference in this interval is much smaller than the percentage you've set, skip this element
+                    if temp_rightval - temp_leftval < 0.1*X: 
+                        continue
+
+                    # If this interval width ties with the previous best, save only if residuals are smaller
+                    if (temp_velspan == min_velspan): 
+                        if (temp_residual < min_residual):
+                            min_velspan = temp_velspan
+                            v1, v2 = temp_v1, temp_v2
+                            min_residual = temp_residual
+                    # If this interval is the smallest, save it (unless the right velocity limit is at max velocity)
+                    elif (temp_velspan < min_velspan) & (temp_v2 != cdf_vels[-1]): 
+                        min_velspan = temp_velspan
+                        v1, v2 = temp_v1, temp_v2
+                        min_residual = temp_residual
+                # Peak velocity is at the middle of the interval
+                v_peak = v1+((v2-v1)/2)
+                model_peakvels.append(v_peak)
+
+                # For debugging purposes
+                print(sl, [v_peak, v1, v2], "prev vlsr =", model.vlsr[sl])
+
+            # Set model velocity to equal peak velocity rather than average velocity
+            model.vlsr = model_peakvels
+
+                
+     
+
         # Plot data vs. model and residual skymaps
         fig, ax = plot_datavsmodel(data,model)
         fig.savefig(f"{dir}/{ion}_comp.pdf",bbox_inches='tight')
         fig, ax = plot_residuals(data,model,model_name)
         fig.savefig(f"{dir}/{ion}_residuals_mollweide.pdf",bbox_inches='tight')
+
+
 
         # Calculate goodness of fit
         try:
