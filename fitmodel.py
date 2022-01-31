@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
     run_in_parallel = True # If False, code will use a single thread (takes much longer)
     lat_lim = 60 # Only fit sightlines below this Galactic latitude
-    velocity_method = 'peakvel' # How to calculate sightline velocities. Possible values: 'weighted', 'maxcol', 'peakvel'
+    velocity_method = 'maxvel' # How to calculate sightline velocities. Possible values: 'weighted', 'maxcol', 'peakvel', 'maxvel'
 
     HVC_flag = '3' # Choose which HVC flag we want
 
@@ -229,6 +229,8 @@ if __name__ == '__main__':
             ds = pd.read_table("data/sightlines_maxN_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
         elif velocity_method == 'peakvel':
             ds = pd.read_table("data/sightlines_peakvel_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
+        elif velocity_method == 'maxvel':
+            ds = pd.read_table("data/sightlines_maxvel_flag_" + HVC_flag + ".txt", sep=' ', skipinitialspace=True)
         else:
             raise NameError('Please choose a valid velocity calculation method!')
 
@@ -325,7 +327,7 @@ if __name__ == '__main__':
         # Plot model vs data
         ###########################################################################
         # If you are using peak velocities, then return spectra so vlsr_peak can be calculated for the model
-        if velocity_method == 'peakvel':
+        if (velocity_method == 'peakvel') or (velocity_method == 'maxvel'):
             print("Using model peak velocities.")
             getSpec = True
         else:
@@ -372,7 +374,7 @@ if __name__ == '__main__':
 
         # Calculate peak velocity for the model, if called for 
         # (This maybe should be incorporated into the Sightlines class?)
-        if velocity_method == 'peakvel':
+        if (velocity_method == 'peakvel') or (velocity_method == 'maxvel'):
             print("Calculating model peak velocities...")
             X = 0.2 # What percentage of the flux you want the velocity interval to contain
             cdf_vels = model.spec_grid
